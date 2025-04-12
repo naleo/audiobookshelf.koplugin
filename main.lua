@@ -3,6 +3,7 @@ local AudiobookshelfBrowser = require("audiobookshelf/audiobookshelfbrowser")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
+local logger = require("logger")
 
 local Audiobookshelf = WidgetContainer:extend{
     name = "audiobookshelf",
@@ -19,9 +20,10 @@ function Audiobookshelf:init()
 end
 
 function Audiobookshelf:addToMainMenu(menu_items)
+    logger.warn(menu_items)
     menu_items.audiobookshelf = {
         text = _("Audiobookshelf"),
-        sorting_hint = "more_tools",
+        sorting_hint = "main",
         callback = function() 
             UIManager:show(AudiobookshelfBrowser:new())
         end
