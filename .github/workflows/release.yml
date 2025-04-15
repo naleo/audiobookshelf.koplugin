@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Zip release
-        run: cd .. && zip -r audiobookshelf.koplugin.zip audiobookshelf.koplugin -x '*.git*' 'audiobookshelf.koplugin/spec/*' 'audiobookshelf.koplugin/lua_modules/*' 'audiobookshelf.koplugin/.luarocks/*' 'audiobookshelf.koplugin/lua' 'audiobookshelf.koplugin/luarocks' 'audiobookshelf.koplugin/.tool-versions' '*.rockspec' && cd audiobookshelf.koplugin && mv ../audiobookshelf.koplugin .
+        run: cd .. && zip -r audiobookshelf.koplugin.zip audiobookshelf.koplugin -x '*.git*' 'audiobookshelf.koplugin/spec/*' 'audiobookshelf.koplugin/lua_modules/*' 'audiobookshelf.koplugin/.luarocks/*' 'audiobookshelf.koplugin/lua' 'audiobookshelf.koplugin/luarocks' 'audiobookshelf.koplugin/.tool-versions' '*.rockspec' && cd audiobookshelf.koplugin && mv ../audiobookshelf.koplugin.zip .
 
       - name: Release
         uses: softprops/action-gh-release@v2
