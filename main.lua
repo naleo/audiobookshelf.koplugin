@@ -11,7 +11,7 @@ local Audiobookshelf = WidgetContainer:extend{
 }
 
 function Audiobookshelf:onDispatcherRegisterActions()
-    Dispatcher:registerAction("helloworld_action", {category="none", event="HelloWorld", title=_("Hello World"), general=true,})
+    -- none atm
 end
 
 function Audiobookshelf:init()
@@ -20,11 +20,10 @@ function Audiobookshelf:init()
 end
 
 function Audiobookshelf:addToMainMenu(menu_items)
-    logger.warn(menu_items)
     menu_items.audiobookshelf = {
         text = _("Audiobookshelf"),
-        sorting_hint = "main",
-        callback = function() 
+        sorting_hint = "tools",
+        callback = function()
             UIManager:show(AudiobookshelfBrowser:new())
         end
     }

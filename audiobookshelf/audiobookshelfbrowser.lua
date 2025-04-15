@@ -1,5 +1,7 @@
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
+local BookDetailsWidget = require("audiobookshelf/bookdetailswidget")
 local Menu = require("ui/widget/menu")
+local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 local logger = require("logger")
 
@@ -45,9 +47,11 @@ function AudiobookshelfBrowser:onMenuSelect(item)
             name = item.text
         })
         self:openLibrary(item.id, item.text)
-    elseif item.type == "file" then
+    elseif item.type == "book" then
+        local bookdetailswidget = BookDetailsWidget:new{ book_id = item.id, onCloseParent = self.onClose }
+        UIManager:show(bookdetailswidget, "flashui")
     end
-    return true
+        return true
 end
 
 function AudiobookshelfBrowser:openLibrary(id, name)
