@@ -1,0 +1,24 @@
+name: Releases
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip release
+        run: cd .. && zip -r audiobookshelf.koplugin.zip audiobookshelf.koplugin -x '*.git*' 'audiobookshelf.koplugin/spec/*' 'audiobookshelf.koplugin/lua_modules/*' 'audiobookshelf.koplugin/.luarocks/*' 'audiobookshelf.koplugin/lua' 'audiobookshelf.koplugin/luarocks' 'audiobookshelf.koplugin/.tool-versions' '*.rockspec'
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: audiobookshelf.koplugin.zip
