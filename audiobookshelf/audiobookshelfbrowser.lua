@@ -1,6 +1,7 @@
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
 local BookDetailsWidget = require("audiobookshelf/bookdetailswidget")
 local InputDialog = require("ui/widget/inputdialog")
+local LuaSettings = require("luasettings")
 local Menu = require("ui/widget/menu")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
@@ -19,6 +20,9 @@ local AudiobookshelfBrowser = Menu:extend{
 -- abs
 -- library
 function AudiobookshelfBrowser:init()
+    self.abs_settings = LuaSettings:open("plugins/audiobookshelf.koplugin/audiobookshelf_config.lua")
+    self.abs_settings:saveSetting("token", self.abs_settings:readSetting("token"))
+    self.abs_settings:flush()
     self.show_parent = self
     self.current_level = "abs"
     if self.item then
