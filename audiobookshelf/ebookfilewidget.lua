@@ -42,7 +42,7 @@ local EbookFileWidget = InputContainer:extend{
 }
 
 function EbookFileWidget:readSettings()
-    self.abs_settings = LuaSettings:open(DataStorage:getSettingsDir().."/audiobookshelf.lua")
+    self.abs_settings = LuaSettings:open("plugins/audiobookshelf.koplugin/audiobookshelf_config.lua")
     return self.abs_settings
 end
 
