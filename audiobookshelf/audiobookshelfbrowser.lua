@@ -1,8 +1,10 @@
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
 local BookDetailsWidget = require("audiobookshelf/bookdetailswidget")
+local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local LuaSettings = require("luasettings")
 local Menu = require("ui/widget/menu")
+local MultiInputDialog = require("ui/widget/multiinputdialog")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 local logger = require("logger")
@@ -24,7 +26,7 @@ function AudiobookshelfBrowser:init()
     self.abs_settings:saveSetting("token", self.abs_settings:readSetting("token"))
     self.abs_settings:flush()
     self.show_parent = self
-    self.current_level = "abs"
+    self.level = "abs"
     if self.item then
     else
         self.item_table = self:genItemTableFromLibraries()
@@ -62,11 +64,66 @@ end
 
 function AudiobookshelfBrowser:onLeftButtonTap()
     if self.level == "abs" then
-        -- this is the settings gear button
-        logger.info("settings")
+        self:configAudiobookshelf()
     elseif self.level == "library" then
         self:ShowSearch()
     end
+end
+
+function AudiobookshelfBrowser:configAudiobookshelf()
+    local hint_server = "Audiobookshelf Server Url"
+    local text_server = self.abs_settings:readSetting("server", "")
+    local hint_token = "Audiobookshelf API Token"
+    local text_token = self.abs_settings:readSetting("token", "")
+    local title = "Audiobookshelf Settings"
+    self.settings_dialog = MultiInputDialog:new {
+        title = title,
+        fields = {
+            {
+                text = text_server,
+                input_type = "string",
+                hint = hint_server
+            },
+            {
+                text = text_token,
+                input_type = "string",
+                hint = hint_token
+            }
+        },
+        buttons = {
+            {
+                {
+                    text = "Cancel",
+                    id = "close",
+                    callback = function()
+                        self.settings_dialog:onClose()
+                        UIManager:close(self.settings_dialog)
+                    end
+                },
+                {
+                    text = "Save",
+                    callback = function()
+                        local fields = self.settings_dialog:getFields()
+                        logger.warn(fields)
+
+                        self.abs_settings:saveSetting("server", fields[1])
+                        self.abs_settings:saveSetting("token", fields[2])
+                        self.abs_settings:flush()
+
+                        self.settings_dialog:onClose()
+                        UIManager:close(self.settings_dialog)
+
+                        UIManager:show(InfoMessage:new{
+                            text = "Settings saved",
+                            timeout = 1
+                        })
+                    end
+                }
+            }
+        }
+    }
+    UIManager:show(self.settings_dialog)
+    self.settings_dialog:onShowKeyboard()
 end
 
 function AudiobookshelfBrowser:ShowSearch()
