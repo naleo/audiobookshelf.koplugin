@@ -123,14 +123,15 @@ function EbookFileWidget:onHoldSelect()
 end
 
 function EbookFileWidget:downloadFile()
-    local function startDownloadFile(path, callback_close)
+    local function startDownloadFile(filename, path, callback_close)
+        local safeFilename = util.getSafeFilename(filename, path, 230)
         UIManager:scheduleIn(1, function()
-            local code = AudiobookshelfApi:downloadFile(self.book_id, self.ino, path)
+            local code = AudiobookshelfApi:downloadFile(self.book_id, self.ino, safeFilename, path)
             if code == 200 then
                 local __, filename = util.splitFilePathName(path)
                 UIManager:show(ConfirmBox:new{
                     text = T(_("File saved to:\n%1\nWould you like to read the downloaded book now?"),
-                        BD.filepath(path)),
+                        BD.filepath(path .. "/" .. safeFilename)),
                     ok_callback = function()
                         local Event = require("ui/event")
                         UIManager:broadcastEvent(Event:new("SetupShowReader"))
@@ -138,7 +139,7 @@ function EbookFileWidget:downloadFile()
                         if callback_close then
                             callback_close()
                         end
-                        ReaderUI:showReader(path)
+                        ReaderUI:showReader(path .. "/" .. safeFilename)
                     end
                 })
             else
@@ -228,13 +229,13 @@ function EbookFileWidget:downloadFile()
                 text = _("Download"),
                 callback = function()
                     UIManager:close(self.download_dialog)
-                    local path_dir = (download_dir ~= "/" and download_dir or "") .. '/' .. chosen_filename
+                    local path_dir = (download_dir ~= "/" and download_dir or "")
                     local callback_close = function() self:onClose() end
                     if lfs.attributes(path_dir) then
                         UIManager:show(ConfirmBox:new{
                             text = _("File already exists. Would you like to overwrite it?"),
                             ok_callback = function()
-                                startDownloadFile(path_dir, callback_close)
+                                startDownloadFile(chosen_filename, path_dir, callback_close)
                             end
                         })
                     else

@@ -84,7 +84,7 @@ function AudiobookshelfApi:getLibraryItem(id)
     logger.warn("AudiobookshelfApi: error:", response)
 end
 
-function AudiobookshelfApi:downloadFile(id, ino, local_path)
+function AudiobookshelfApi:downloadFile(id, ino, filename, local_path)
     socketutil:set_timeout(socketutil.FILE_BLOCK_TIMEOUT, socketutil.FILE_TOTAL_TIMEOUT)
     local request = {
         url = self.abs_settings:readSetting("server") .. "/api/items/" .. id .. "/file/" .. ino .. "/download",
@@ -93,7 +93,7 @@ function AudiobookshelfApi:downloadFile(id, ino, local_path)
             ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
             ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
         },
-        sink = ltn12.sink.file(io.open(local_path, "w")),
+        sink = ltn12.sink.file(io.open(local_path .. "/" .. filename, "w")),
     }
     local code, _, status = socket.skip(1, http.request(request))
     socketutil:reset_timeout()
