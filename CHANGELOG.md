@@ -1,3 +1,7 @@
+## 0.1.2 (2024-04-26)
+
+Fix issue #6 where if a book has an unsafe character in the filename.  This sanitizes the name using util.getSafeFilename
+
 ## 0.1.1 (2025-04-25)
 
 Add search functionality
