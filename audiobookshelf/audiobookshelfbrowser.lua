@@ -190,7 +190,7 @@ function AudiobookshelfBrowser:openLibrary(id, name)
         table.insert(tbl, {
             id = item.id,
             text = item.media.metadata.title,
-            mandatory = item.media.metadata.authorName,
+            mandatory = (string.len(item.media.metadata.authorName) > 50) and (string.sub(item.media.metadata.authorName, 1, 50) .. "...") or item.media.metadata.authorName,
             type = "book"
         })
     end
