@@ -189,8 +189,7 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     for _, item in ipairs(libraryItems) do
         table.insert(tbl, {
             id = item.id,
-            text = item.media.metadata.title,
-            mandatory = (string.len(item.media.metadata.authorName) > 50) and (string.sub(item.media.metadata.authorName, 1, 50) .. "...") or item.media.metadata.authorName,
+            text = item.media.metadata.title .. " by " .. item.media.metadata.authorName,
             type = "book"
         })
     end
