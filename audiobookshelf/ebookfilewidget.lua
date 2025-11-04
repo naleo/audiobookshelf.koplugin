@@ -29,8 +29,6 @@ local lfs = require("libs/libkoreader-lfs")
 local T = require("ffi/util").template
 local _ = require("gettext")
 
-
-
 local EbookFileWidget = InputContainer:extend{
     filename = nil,
     ino = nil,
@@ -46,14 +44,10 @@ function EbookFileWidget:readSettings()
     return self.abs_settings
 end
 
-
 function EbookFileWidget:init()
-
-
     self.small_font = Font:getFace("smallffont")
     self.medium_font = Font:getFace("ffont")
     self.large_font = Font:getFace("largeffont")
-
 
     local first_text = TextBoxWidget:new{
         text = self.filename or "",
@@ -106,7 +100,6 @@ function EbookFileWidget:init()
             },
         },
     }
-
 end
 
 function EbookFileWidget:onTapSelect()
@@ -128,8 +121,7 @@ function EbookFileWidget:downloadFile()
         UIManager:scheduleIn(1, function()
             local code = AudiobookshelfApi:downloadFile(self.book_id, self.ino, safeFilename, path)
             if code == 200 then
-                local __, filename = util.splitFilePathName(path)
-                UIManager:show(ConfirmBox:new{
+                local confirm = ConfirmBox:new{
                     text = T(_("File saved to:\n%1\nWould you like to read the downloaded book now?"),
                         BD.filepath(path .. "/" .. safeFilename)),
                     ok_callback = function()
@@ -141,18 +133,22 @@ function EbookFileWidget:downloadFile()
                         end
                         ReaderUI:showReader(path .. "/" .. safeFilename)
                     end
-                })
+                }
+                -- force full refresh / flash to avoid clipped rendering
+                UIManager:show(confirm, "flashui")
             else
-                UIManager:show(InfoMessage:new{
+                local info_err = InfoMessage:new{
                     text = T(_("Could not save file to:\n%1"), BD.filepath(path)),
                     timeout = 3,
-                })
+                }
+                UIManager:show(info_err, "flashui")
             end
         end)
-        UIManager:show(InfoMessage:new{
+        local info_down = InfoMessage:new{
             text = _("Downloading. This might take a moment."),
             timeout = 1,
-        })
+        }
+        UIManager:show(info_down, "flashui")
     end
 
     local function genTitle(original_filename, size, filename, path)
@@ -229,17 +225,26 @@ function EbookFileWidget:downloadFile()
                 text = _("Download"),
                 callback = function()
                     UIManager:close(self.download_dialog)
-                    local path_dir = (download_dir ~= "/" and download_dir or "")
-                    local callback_close = function() self:onClose() end
-                    if lfs.attributes(path_dir) then
+                    -- call parent close callback safely without passing this widget as `self`
+                    local callback_close = function()
+                        if type(self.onClose) == "function" then
+                            self.onClose()
+                        end
+                    end
+
+                    -- ensure chosen_filename is sanitized for existence check
+                    local safeFilename = util.getSafeFilename(chosen_filename, download_dir, 230)
+                    local fullpath = (download_dir == "/" and ("/" .. safeFilename)) or (download_dir .. "/" .. safeFilename)
+
+                    if lfs.attributes(fullpath) then
                         UIManager:show(ConfirmBox:new{
                             text = _("File already exists. Would you like to overwrite it?"),
                             ok_callback = function()
-                                startDownloadFile(chosen_filename, path_dir, callback_close)
+                                startDownloadFile(chosen_filename, download_dir, callback_close)
                             end
-                        })
+                        }, "flashui")
                     else
-                        startDownloadFile(path_dir, callback_close)
+                        startDownloadFile(chosen_filename, download_dir, callback_close)
                     end
                 end,
             },

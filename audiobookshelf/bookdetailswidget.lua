@@ -25,6 +25,7 @@ local Device = require("device")
 local Screen = Device.screen
 
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
+local InfoMessage = require("ui/widget/infomessage")
 
 local BookDetailsWidget = FocusManager:extend{
     padding = Size.padding.fullscreen,
@@ -34,7 +35,8 @@ local BookDetailsWidget = FocusManager:extend{
 function BookDetailsWidget:onClose()
     UIManager:close(self)
     if self.onCloseParent then
-        self:onCloseParent()
+        -- call as a zero-argument function to avoid passing this widget as `self`
+        self.onCloseParent()
     end
 end
 
@@ -42,6 +44,15 @@ function BookDetailsWidget:init()
     self.layout = {}
 
     self.book_info = AudiobookshelfApi:getLibraryItem(self.book_id)
+    if not self.book_info then
+        UIManager:show(InfoMessage:new{
+            text = _("Could not load book details. Check network and settings."),
+            timeout = 2,
+        })
+        -- close the widget to avoid crashes elsewhere
+        UIManager:close(self)
+        return
+    end
 
     self.small_font = Font:getFace("smallffont")
     self.medium_font = Font:getFace("ffont")
@@ -96,14 +107,15 @@ function BookDetailsWidget:genFileList()
                 filename = file.metadata.filename,
                 size_in_bytes =  file.metadata.size,
                 book_id = self.book_info.id,
-                onClose = self.onClose
+                -- pass a zero-arg closure that will call this widget's onClose
+                onClose = function()
+                    self:onClose()
+                end,
             })
         end
     end
     return list
 end
-
-
 
 function BookDetailsWidget:genBookDetails()
     local screen_width = Screen:getWidth()
@@ -242,8 +254,6 @@ function BookDetailsWidget:genBookDetails()
     table.insert(book_details_group, book_metadata_group)
 
     return book_details_group
-
-
 end
 
 function BookDetailsWidget:genHeader(title)
@@ -311,11 +321,6 @@ end
 
 function BookDetailsWidget:stripBasicHTMLTags(text)
     return string.gsub(text, '<[^>]*>', '')
-end
-
-function BookDetailsWidget:onClose()
-    UIManager:close(self, "flashpartial")
-    return true
 end
 
 return BookDetailsWidget

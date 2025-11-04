@@ -28,14 +28,20 @@ function AudiobookshelfApi:getLibraries()
         sink = ltn12.sink.table(sink),
     }
     socketutil:set_timeout()
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getLibraries:", code)
+        return nil
+    end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response)
         return result.libraries
     end
     logger.warn("AudiobookshelfApi: cannot get libraries", status or code)
     logger.warn("AudiobookshelfApi: error:", response)
+    return nil
 end
 
 function AudiobookshelfApi:getLibraryItems(id)
@@ -52,14 +58,20 @@ function AudiobookshelfApi:getLibraryItems(id)
         sink = ltn12.sink.table(sink),
     }
     socketutil:set_timeout()
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getLibraryItems:", code)
+        return nil
+    end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response, JSON.decode.simple)
         return result.results
     end
     logger.warn("AudiobookshelfApi: cannot get library items for library", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
+    return nil
 end
 
 function AudiobookshelfApi:getLibraryItem(id)
@@ -74,18 +86,30 @@ function AudiobookshelfApi:getLibraryItem(id)
         sink = ltn12.sink.table(sink),
     }
     socketutil:set_timeout()
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getLibraryItem:", code)
+        return nil
+    end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response, JSON.decode.simple)
         return result
     end
-    logger.warn("AudiobookshelfApi: cannot get library items for library", id ,status or code)
+    logger.warn("AudiobookshelfApi: cannot get library item", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
+    return nil
 end
 
 function AudiobookshelfApi:downloadFile(id, ino, filename, local_path)
     socketutil:set_timeout(socketutil.FILE_BLOCK_TIMEOUT, socketutil.FILE_TOTAL_TIMEOUT)
+    local outfile, err = io.open(local_path .. "/" .. filename, "w")
+    if not outfile then
+        logger.warn("AudiobookshelfApi: cannot open local file for writing:", local_path .. "/" .. filename, err)
+        socketutil:reset_timeout()
+        return nil
+    end
     local request = {
         url = self.abs_settings:readSetting("server") .. "/api/items/" .. id .. "/file/" .. ino .. "/download",
         method = "GET",
@@ -93,16 +117,15 @@ function AudiobookshelfApi:downloadFile(id, ino, filename, local_path)
             ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
             ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
         },
-        sink = ltn12.sink.file(io.open(local_path .. "/" .. filename, "w")),
+        sink = ltn12.sink.file(outfile),
     }
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     socketutil:reset_timeout()
-    if code ~= 200 then
+    if not ok or code ~= 200 then
         logger.warn("AudiobookshelfApi: cannot download file:", id , ino, status or code)
     end
     return code
 end
-
 
 function AudiobookshelfApi:getLibraryItemCover(id)
     local sink = {}
@@ -116,15 +139,20 @@ function AudiobookshelfApi:getLibraryItemCover(id)
         sink = ltn12.sink.table(sink),
     }
     socketutil:set_timeout()
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getLibraryItemCover:", code)
+        return nil
+    end
     if code == 200 and response ~= "" then
         local result = RenderImage:renderImageData(response, #response)
         return result
     end
-    logger.warn("AudiobookshelfApi: cannot get library items for library", id ,status or code)
+    logger.warn("AudiobookshelfApi: cannot get library item cover", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
-
+    return nil
 end
 
 function AudiobookshelfApi:getSearchResults(id, search_query)
@@ -142,15 +170,20 @@ function AudiobookshelfApi:getSearchResults(id, search_query)
         sink = ltn12.sink.table(sink),
     }
     socketutil:set_timeout()
-    local code, _, status = socket.skip(1, http.request(request))
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
     local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getSearchResults:", code)
+        return nil
+    end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response, JSON.decode.simple)
         return result
     end
     logger.warn("AudiobookshelfApi: cannot search library", id ,search_query, status or code)
     logger.warn("AudiobookshelfApi: error:", response)
-
+    return nil
 end
 
 return AudiobookshelfApi
