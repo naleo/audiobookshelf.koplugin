@@ -1,4 +1,8 @@
-## 0.1.2 (2024-04-26)
+## 0.1.3 (2025-12-01)
+
+Merged a PR with a bunch of error handling (#12)
+
+## 0.1.2 (2025-04-26)
 
 Fix issue #6 where if a book has an unsafe character in the filename.  This sanitizes the name using util.getSafeFilename
 
