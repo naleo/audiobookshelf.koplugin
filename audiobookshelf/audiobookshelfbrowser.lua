@@ -37,6 +37,13 @@ end
 function AudiobookshelfBrowser:genItemTableFromLibraries()
     local item_table = {}
     local libraries = AudiobookshelfApi:getLibraries()
+    if not libraries then
+        UIManager:show(InfoMessage:new{
+            text = _("Could not reach Audiobookshelf server. Check network and settings."),
+            timeout = 2,
+        })
+        return item_table
+    end
     for _, library in ipairs(libraries) do
         table.insert(item_table, {
             text = library.name,
@@ -56,10 +63,16 @@ function AudiobookshelfBrowser:onMenuSelect(item)
         })
         self:openLibrary(item.id, item.text)
     elseif item.type == "book" then
-        local bookdetailswidget = BookDetailsWidget:new{ book_id = item.id, onCloseParent = self.onClose }
+        -- Pass a zero-argument closure so the child calls the parent correctly
+        local bookdetailswidget = BookDetailsWidget:new{
+            book_id = item.id,
+            onCloseParent = function()
+                self:onClose()
+            end,
+        }
         UIManager:show(bookdetailswidget, "flashui")
     end
-        return true
+    return true
 end
 
 function AudiobookshelfBrowser:onLeftButtonTap()
@@ -169,6 +182,13 @@ end
 function AudiobookshelfBrowser:loadLibrarySearch(search)
     local tbl = {}
     local libraryItems = AudiobookshelfApi:getSearchResults(self.library_id, search)
+    if not libraryItems or not libraryItems.book then
+        UIManager:show(InfoMessage:new{
+            text = _("Search failed. Check network and settings."),
+            timeout = 2,
+        })
+        return
+    end
     logger.warn(libraryItems)
     for _, item in ipairs(libraryItems.book) do
         table.insert(tbl, {
@@ -186,6 +206,13 @@ end
 function AudiobookshelfBrowser:openLibrary(id, name)
     local tbl = {}
     local libraryItems = AudiobookshelfApi:getLibraryItems(id)
+    if not libraryItems then
+        UIManager:show(InfoMessage:new{
+            text = _("Could not load library. Check network and settings."),
+            timeout = 2,
+        })
+        return false
+    end
     for _, item in ipairs(libraryItems) do
         table.insert(tbl, {
             id = item.id,
@@ -201,8 +228,5 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     self:switchItemTable(name, tbl)
     return true
 end
-
-
-
 
 return AudiobookshelfBrowser
