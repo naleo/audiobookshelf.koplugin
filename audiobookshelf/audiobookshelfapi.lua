@@ -186,4 +186,65 @@ function AudiobookshelfApi:getSearchResults(id, search_query)
     return nil
 end
 
+function AudiobookshelfApi:getProgress(library_item_id)
+    local sink = {}
+    local request = {
+        url = self.abs_settings:readSetting("server") .. "/api/me/progress/" .. library_item_id,
+        method = "GET",
+        headers = {
+            ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
+            ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
+        },
+        sink = ltn12.sink.table(sink),
+    }
+    socketutil:set_timeout(5, 10)
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
+    local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getProgress:", code)
+        return nil, "network_error"
+    end
+    if code == 200 and response ~= "" then
+        local _, result = pcall(JSON.decode, response)
+        return result
+    elseif code == 404 then
+        return nil, "no_progress"
+    end
+    logger.warn("AudiobookshelfApi: cannot get progress", library_item_id, status or code)
+    return nil, "api_error"
+end
+
+function AudiobookshelfApi:updateProgress(library_item_id, progress_data)
+    local sink = {}
+    local body = JSON.encode(progress_data)
+    local request = {
+        url = self.abs_settings:readSetting("server") .. "/api/me/progress/" .. library_item_id,
+        method = "PATCH",
+        headers = {
+            ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
+            ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
+            ["Content-Type"] = "application/json",
+            ["Content-Length"] = #body,
+        },
+        source = ltn12.source.string(body),
+        sink = ltn12.sink.table(sink),
+    }
+    socketutil:set_timeout(5, 10)
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
+    local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in updateProgress:", code)
+        return nil, "network_error"
+    end
+    if code == 200 then
+        local _, result = pcall(JSON.decode, response)
+        return result
+    end
+    logger.warn("AudiobookshelfApi: cannot update progress", library_item_id, status or code)
+    logger.warn("AudiobookshelfApi: error:", response)
+    return nil, "api_error"
+end
+
 return AudiobookshelfApi

@@ -107,6 +107,7 @@ function BookDetailsWidget:genFileList()
                 filename = file.metadata.filename,
                 size_in_bytes =  file.metadata.size,
                 book_id = self.book_info.id,
+                book_title = self.book_info.media.metadata.title,
                 -- pass a zero-arg closure that will call this widget's onClose
                 onClose = function()
                     self:onClose()
