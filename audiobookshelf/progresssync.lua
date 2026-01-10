@@ -83,10 +83,8 @@ function ProgressSync:pushProgress(blocking, callback)
     end
 
     local progress_data = {
-        progress = local_progress.percent,
-        currentTime = 0,
-        isFinished = local_progress.percent >= 0.99,
         ebookProgress = local_progress.percent,
+        isFinished = local_progress.percent >= 0.99,
     }
 
     logger.dbg("ProgressSync: pushing progress", local_progress.percent, "to", self.current_mapping.library_item_id)
