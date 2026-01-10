@@ -15,7 +15,6 @@ local ProgressSync = {
     last_sync_time = 0,
     page_turn_count = 0,
     current_mapping = nil,
-    pending_push = false,
 }
 
 function ProgressSync:init(ui)
@@ -23,7 +22,6 @@ function ProgressSync:init(ui)
     self.last_sync_time = 0
     self.page_turn_count = 0
     self.current_mapping = nil
-    self.pending_push = false
 end
 
 function ProgressSync:loadMappingForDocument()
@@ -259,7 +257,6 @@ function ProgressSync:reset()
     self.last_sync_time = 0
     self.page_turn_count = 0
     self.current_mapping = nil
-    self.pending_push = false
 end
 
 return ProgressSync
