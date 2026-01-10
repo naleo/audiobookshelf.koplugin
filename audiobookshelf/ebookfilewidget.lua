@@ -1,4 +1,5 @@
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
+local BookMapping = require("audiobookshelf/bookmapping")
 local BD = require("ui/bidi")
 local Blitbuffer = require("ffi/blitbuffer")
 local ButtonDialog = require("ui/widget/buttondialog")
@@ -34,6 +35,7 @@ local EbookFileWidget = InputContainer:extend{
     ino = nil,
     size_in_bytes = 0,
     book_id = nil,
+    book_title = nil,
     width = nil,
     side_margin = Size.padding.fullscreen,
     onClose = nil -- function to close whole parent menu path after download
@@ -121,9 +123,13 @@ function EbookFileWidget:downloadFile()
         UIManager:scheduleIn(1, function()
             local code = AudiobookshelfApi:downloadFile(self.book_id, self.ino, safeFilename, path)
             if code == 200 then
+                local full_path = path .. "/" .. safeFilename
+                BookMapping:setMapping(full_path, self.book_id, self.ino, self.book_title or self.filename)
+                logger.dbg("EbookFileWidget: linked downloaded book to", self.book_id)
+
                 local confirm = ConfirmBox:new{
                     text = T(_("File saved to:\n%1\nWould you like to read the downloaded book now?"),
-                        BD.filepath(path .. "/" .. safeFilename)),
+                        BD.filepath(full_path)),
                     ok_callback = function()
                         local Event = require("ui/event")
                         UIManager:broadcastEvent(Event:new("SetupShowReader"))
@@ -131,7 +137,7 @@ function EbookFileWidget:downloadFile()
                         if callback_close then
                             callback_close()
                         end
-                        ReaderUI:showReader(path .. "/" .. safeFilename)
+                        ReaderUI:showReader(full_path)
                     end
                 }
                 -- force full refresh / flash to avoid clipped rendering
