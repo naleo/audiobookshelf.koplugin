@@ -12,8 +12,9 @@ local LuaSettings = require("luasettings")
 
 local VERSION = require("audiobookshelf_version")
 
+local config_file = string.gsub(debug.getinfo(1).source, "^@(.+/)[^/]+$", "%1") .. "/../audiobookshelf_config.lua"
 local AudiobookshelfApi = {
-    abs_settings = LuaSettings:open("plugins/audiobookshelf.koplugin/audiobookshelf_config.lua")
+    abs_settings = LuaSettings:open(config_file)
 }
 
 function AudiobookshelfApi:getLibraries()

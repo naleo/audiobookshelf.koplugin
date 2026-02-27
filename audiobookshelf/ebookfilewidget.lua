@@ -40,7 +40,8 @@ local EbookFileWidget = InputContainer:extend{
 }
 
 function EbookFileWidget:readSettings()
-    self.abs_settings = LuaSettings:open("plugins/audiobookshelf.koplugin/audiobookshelf_config.lua")
+    local config_file = string.gsub(debug.getinfo(1).source, "^@(.+/)[^/]+$", "%1") .. "/../audiobookshelf_config.lua"
+    self.abs_settings = LuaSettings:open(config_file)
     return self.abs_settings
 end
 
