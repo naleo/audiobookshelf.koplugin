@@ -22,7 +22,8 @@ local AudiobookshelfBrowser = Menu:extend{
 -- abs
 -- library
 function AudiobookshelfBrowser:init()
-    self.abs_settings = LuaSettings:open("plugins/audiobookshelf.koplugin/audiobookshelf_config.lua")
+    local config_file = string.gsub(debug.getinfo(1).source, "^@(.+/)[^/]+$", "%1") .. "/../audiobookshelf_config.lua"
+    self.abs_settings = LuaSettings:open(config_file)
     self.abs_settings:saveSetting("token", self.abs_settings:readSetting("token"))
     self.abs_settings:flush()
     self.show_parent = self
