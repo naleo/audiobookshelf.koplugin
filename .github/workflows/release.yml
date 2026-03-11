@@ -2,18 +2,27 @@ name: Releases
 
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - master
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          release_branches: master
 
       - name: Zip release
         run: cd .. && zip -r audiobookshelf.koplugin.zip audiobookshelf.koplugin -x '*.git*' 'audiobookshelf.koplugin/spec/*' 'audiobookshelf.koplugin/lua_modules/*' 'audiobookshelf.koplugin/.luarocks/*' 'audiobookshelf.koplugin/lua' 'audiobookshelf.koplugin/luarocks' 'audiobookshelf.koplugin/.tool-versions' '*.rockspec' && cd audiobookshelf.koplugin && mv ../audiobookshelf.koplugin.zip .
@@ -21,4 +30,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
           files: audiobookshelf.koplugin.zip
