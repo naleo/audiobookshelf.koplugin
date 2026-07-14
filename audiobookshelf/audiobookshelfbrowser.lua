@@ -59,6 +59,11 @@ end
 function AudiobookshelfBrowser:onMenuSelect(item)
     if item.type == "filter" then
         self:showTagFilter()
+    elseif item.type == "toggleview" then
+        -- Switch to mosaic view and remember it; reopen the library.
+        self.abs_settings:saveSetting("view_mode", "mosaic")
+        self.abs_settings:flush()
+        self:openLibrary(self.library_id, self.library_name)
     elseif item.type == "library" then
         table.insert(self.paths, {
             id = item.id,
@@ -208,10 +213,14 @@ function AudiobookshelfBrowser:loadLibrarySearch(search)
 end
 
 function AudiobookshelfBrowser:openLibrary(id, name)
-    local tbl = {}
-    -- Persisted tag filter ("" = show everything). Remembered across sessions
-    -- via the plugin's LuaSettings config file.
+    self.library_id = id
+    self.library_name = name
+
+    -- Persisted tag filter ("" = show everything) and view mode ("list"/"mosaic").
+    -- Both remembered across sessions via the plugin's LuaSettings config file.
     local active_tag = self.abs_settings:readSetting("filter_tag", "")
+    local view_mode = self.abs_settings:readSetting("view_mode", "list")
+
     local libraryItems = AudiobookshelfApi:getLibraryItems(id, active_tag)
     if not libraryItems then
         UIManager:show(InfoMessage:new{
@@ -221,11 +230,23 @@ function AudiobookshelfBrowser:openLibrary(id, name)
         return false
     end
 
+    -- Mosaic view: show a cover grid overlay instead of the text list.
+    if view_mode == "mosaic" then
+        self:showMosaic(libraryItems, 0)
+        return true
+    end
+
+    local tbl = {}
     -- Filter row at the top: shows the active tag and opens the tag picker.
     table.insert(tbl, {
         text = (active_tag ~= "" and T(_("⚑ Filter: %1 (tap to change)"), active_tag)
                                   or _("⚑ Filter: all books (tap to filter)")),
         type = "filter",
+    })
+    -- View toggle row.
+    table.insert(tbl, {
+        text = _("▦ View: text list (tap for covers)"),
+        type = "toggleview",
     })
 
     for _, item in ipairs(libraryItems) do
@@ -237,12 +258,62 @@ function AudiobookshelfBrowser:openLibrary(id, name)
         })
     end
 
-    self.library_id = id
-    self.library_name = name
     self.level = "library"
     self:setTitleBarLeftIcon("appbar.search")
     self:switchItemTable(name, tbl)
     return true
+end
+
+--[[--
+Show the cover-mosaic overlay for the current library. Paging re-fetches the
+same filtered item list and shows the requested page. Tapping a cover opens the
+book details widget (identical to the list view's behaviour).
+@param items table  library items (already tag-filtered)
+@param page number  0-based page index
+--]]
+function AudiobookshelfBrowser:showMosaic(items, page)
+    local Mosaic = require("audiobookshelf/audiobookshelfmosaic")
+    local per_page = 9
+    page = page or 0
+    local total = #items
+    local first = page * per_page + 1
+    local page_items = {}
+    for i = first, math.min(first + per_page - 1, total) do
+        table.insert(page_items, items[i])
+    end
+
+    local mosaic
+    mosaic = Mosaic:new{
+        items = page_items,
+        page = page,
+        total = total,
+        library_id = self.library_id,
+        library_name = self.library_name,
+        on_open = function(item)
+            UIManager:close(mosaic)
+            local bookdetailswidget = BookDetailsWidget:new{
+                book_id = item.id,
+                onCloseParent = function() self:onClose() end,
+            }
+            UIManager:show(bookdetailswidget, "flashui")
+        end,
+        on_page = function(new_page)
+            UIManager:close(mosaic)
+            self:showMosaic(items, new_page)
+        end,
+        on_close = function()
+            UIManager:close(mosaic)
+        end,
+        on_toggle_list = function()
+            -- Switch back to the text list and remember it.
+            UIManager:close(mosaic)
+            self.abs_settings:saveSetting("view_mode", "list")
+            self.abs_settings:flush()
+            self:openLibrary(self.library_id, self.library_name)
+        end,
+    }
+    UIManager:show(mosaic)
+    UIManager:setDirty(mosaic, "full")
 end
 
 --[[--

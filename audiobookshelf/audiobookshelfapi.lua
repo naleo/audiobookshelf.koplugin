@@ -204,6 +204,59 @@ function AudiobookshelfApi:getLibraryItemCover(id)
     return nil
 end
 
+--[[--
+Get a cover thumbnail for an item, cached on disk so the mosaic view does not
+re-download covers on every page render. Returns a local file path or nil.
+Uses a small server-side resized JPEG (width=240) to keep files tiny.
+@param id string  library item id
+@return string|nil  local file path to the cached cover jpg
+--]]
+function AudiobookshelfApi:getCachedCoverPath(id)
+    local DataStorage = require("datastorage")
+    local lfs = require("libs/libkoreader-lfs")
+    local cache_dir = DataStorage:getDataDir() .. "/cache/absmosaic"
+    if not lfs.attributes(cache_dir, "mode") then
+        os.execute(string.format('mkdir -p "%s"', cache_dir))
+    end
+    local path = cache_dir .. "/" .. id .. ".jpg"
+
+    -- Reuse a cached file if it looks valid (non-trivial size).
+    local attr = lfs.attributes(path)
+    if attr and attr.size and attr.size > 512 then
+        return path
+    end
+
+    -- Download a resized cover to disk.
+    local outfile, oerr = io.open(path, "wb")
+    if not outfile then
+        logger.warn("AudiobookshelfApi: cannot open cover cache file:", path, oerr)
+        return nil
+    end
+    local request = {
+        url = self.abs_settings:readSetting("server") .. "/api/items/" .. id .. "/cover?width=240&format=jpeg",
+        method = "GET",
+        headers = {
+            ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
+            ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
+        },
+        sink = ltn12.sink.file(outfile),
+    }
+    socketutil:set_timeout()
+    local ok, code = pcall(function() return socket.skip(1, http.request(request)) end)
+    socketutil:reset_timeout()
+    if not ok or code ~= 200 then
+        logger.warn("AudiobookshelfApi: cover download failed:", id, code)
+        os.remove(path)
+        return nil
+    end
+    local attr2 = lfs.attributes(path)
+    if not attr2 or not attr2.size or attr2.size < 512 then
+        os.remove(path)
+        return nil
+    end
+    return path
+end
+
 function AudiobookshelfApi:getSearchResults(id, search_query)
     local sink = {}
     local url_encoded_search_string = util.urlEncode(search_query)
