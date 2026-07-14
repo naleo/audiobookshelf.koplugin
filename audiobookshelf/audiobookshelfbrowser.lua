@@ -6,7 +6,7 @@ local LuaSettings = require("luasettings")
 local Menu = require("ui/widget/menu")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local UIManager = require("ui/uimanager")
-local _ = require("gettext")
+local _ = require("audiobookshelf/absi18n")
 local T = require("ffi/util").template
 local logger = require("logger")
 
@@ -93,11 +93,11 @@ function AudiobookshelfBrowser:onLeftButtonTap()
 end
 
 function AudiobookshelfBrowser:configAudiobookshelf()
-    local hint_server = "Audiobookshelf Server Url"
+    local hint_server = _("Audiobookshelf Server Url")
     local text_server = self.abs_settings:readSetting("server", "")
-    local hint_token = "Audiobookshelf API Token"
+    local hint_token = _("Audiobookshelf API Token")
     local text_token = self.abs_settings:readSetting("token", "")
-    local title = "Audiobookshelf Settings"
+    local title = _("Audiobookshelf Settings")
     self.settings_dialog = MultiInputDialog:new {
         title = title,
         fields = {
@@ -115,7 +115,7 @@ function AudiobookshelfBrowser:configAudiobookshelf()
         buttons = {
             {
                 {
-                    text = "Cancel",
+                    text = _("Cancel"),
                     id = "close",
                     callback = function()
                         self.settings_dialog:onClose()
@@ -123,7 +123,7 @@ function AudiobookshelfBrowser:configAudiobookshelf()
                     end
                 },
                 {
-                    text = "Save",
+                    text = _("Save"),
                     callback = function()
                         local fields = self.settings_dialog:getFields()
                         logger.warn(fields)
@@ -136,7 +136,7 @@ function AudiobookshelfBrowser:configAudiobookshelf()
                         UIManager:close(self.settings_dialog)
 
                         UIManager:show(InfoMessage:new{
-                            text = "Settings saved",
+                            text = _("Settings saved"),
                             timeout = 1
                         })
                     end
@@ -150,12 +150,12 @@ end
 
 function AudiobookshelfBrowser:ShowSearch()
     self.search_dialog = InputDialog:new{
-        title = "Search",
+        title = _("Search"),
         input = self.search_value,
         buttons = {
             {
                 {
-                    text = "Cancel",
+                    text = _("Cancel"),
                     id = "close",
                     enabled = true,
                     callback = function()
@@ -164,7 +164,7 @@ function AudiobookshelfBrowser:ShowSearch()
                     end
                 },
                 {
-                    text = "Search",
+                    text = _("Search"),
                     enabled = true,
                     callback = function()
                         self.search_value = self.search_dialog:getInputText()

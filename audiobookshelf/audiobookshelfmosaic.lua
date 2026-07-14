@@ -36,7 +36,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local Screen = require("device").screen
 local T = require("ffi/util").template
-local _ = require("gettext")
+local _ = require("audiobookshelf/absi18n")
 local logger = require("logger")
 
 local AudiobookshelfMosaic = InputContainer:extend{
