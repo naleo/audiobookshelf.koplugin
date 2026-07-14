@@ -46,17 +46,23 @@ function AudiobookshelfApi:getLibraries()
 end
 
 --[[--
-Get items in a library.
-@param id string          library id
-@param tag string|nil     optional tag name; when set, only items carrying this
-                          tag are returned (server-side filter). "" or nil = all.
+Get items in a library, with optional tag + genre filters.
+
+ABS only allows ONE server-side filter, so we send the tag (age band) filter to
+the server — that is the important one (kids must not see adult books, and it
+avoids pulling excluded books over the wire) — and apply any genre filter
+client-side on the returned items. If only a genre is set, it is applied
+client-side over the default "ebooks" set.
+
+@param id string     library id
+@param tag string|nil    tag name for the server-side filter ("" / nil = none)
+@param genre string|nil  genre name to keep client-side ("" / nil = all genres)
 --]]
-function AudiobookshelfApi:getLibraryItems(id, tag)
+function AudiobookshelfApi:getLibraryItems(id, tag, genre)
     local sink = {}
     -- Server-side filter. The ABS filter value is base64(<value>) URL-encoded.
     -- Default keeps the original "ebooks" filter (only items that have an ebook
-    -- file). If a tag is given, filter on that tag instead so excluded books
-    -- never come back over the wire.
+    -- file). If a tag is given, filter on that tag instead.
     local mime = require("mime")
     local filters
     if tag and tag ~= "" then
@@ -84,7 +90,22 @@ function AudiobookshelfApi:getLibraryItems(id, tag)
     end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response, JSON.decode.simple)
-        return result.results
+        local items = result and result.results or {}
+        -- Client-side genre filter (ABS can't combine two server filters).
+        if genre and genre ~= "" then
+            local kept = {}
+            for _, item in ipairs(items) do
+                local genres = item.media and item.media.metadata and item.media.metadata.genres or {}
+                for _, g in ipairs(genres) do
+                    if g == genre then
+                        table.insert(kept, item)
+                        break
+                    end
+                end
+            end
+            return kept
+        end
+        return items
     end
     logger.warn("AudiobookshelfApi: cannot get library items for library", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
@@ -92,11 +113,11 @@ function AudiobookshelfApi:getLibraryItems(id, tag)
 end
 
 --[[--
-Get the list of tags available in a library (for the tag filter picker).
-@param id string  library id
-@return table|nil  array of tag names, or nil on failure
+Fetch the raw /filterdata for a library (tags, genres, authors, series, …).
+@param id string
+@return table|nil  the decoded filterdata table, or nil on failure
 --]]
-function AudiobookshelfApi:getLibraryTags(id)
+function AudiobookshelfApi:getFilterData(id)
     local sink = {}
     local request = {
         url = self.abs_settings:readSetting("server") .. "/api/libraries/" .. id .. "/filterdata",
@@ -112,15 +133,37 @@ function AudiobookshelfApi:getLibraryTags(id)
     local response = table.concat(sink)
     socketutil:reset_timeout()
     if not ok then
-        logger.warn("AudiobookshelfApi: http request failed in getLibraryTags:", code)
+        logger.warn("AudiobookshelfApi: http request failed in getFilterData:", code)
         return nil
     end
     if code == 200 and response ~= "" then
         local _, result = pcall(JSON.decode, response, JSON.decode.simple)
-        return result and result.tags or {}
+        return result
     end
     logger.warn("AudiobookshelfApi: cannot get filterdata for library", id, status or code)
     return nil
+end
+
+--[[--
+Get the list of tags available in a library (for the tag filter picker).
+@param id string  library id
+@return table|nil  array of tag names, or nil on failure
+--]]
+function AudiobookshelfApi:getLibraryTags(id)
+    local result = self:getFilterData(id)
+    if not result then return nil end
+    return result.tags or {}
+end
+
+--[[--
+Get the list of genres available in a library (for the genre filter picker).
+@param id string  library id
+@return table|nil  array of genre names, or nil on failure
+--]]
+function AudiobookshelfApi:getLibraryGenres(id)
+    local result = self:getFilterData(id)
+    if not result then return nil end
+    return result.genres or {}
 end
 
 function AudiobookshelfApi:getLibraryItem(id)

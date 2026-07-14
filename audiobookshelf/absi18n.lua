@@ -31,14 +31,22 @@ local STRINGS = {
             "Kan de bibliotheek niet laden. Controleer netwerk en instellingen.",
         ["Search failed. Check network and settings."] =
             "Zoeken mislukt. Controleer netwerk en instellingen.",
-        -- Tag filter
-        ["⚑ Filter: %1 (tap to change)"] = "⚑ Filter: %1 (tik om te wijzigen)",
-        ["⚑ Filter: all books (tap to filter)"] = "⚑ Filter: alle boeken (tik om te filteren)",
+        -- Age (tag) filter
+        ["⚑ Age: %1 (tap to change)"] = "⚑ Leeftijd: %1 (tik om te wijzigen)",
+        ["⚑ Age: all (tap to filter)"] = "⚑ Leeftijd: alle (tik om te filteren)",
         ["Could not load tags. Check network and settings."] =
             "Kan tags niet laden. Controleer netwerk en instellingen.",
         ["No tags in this library."] = "Geen tags in deze bibliotheek.",
         ["All books (no filter)"] = "Alle boeken (geen filter)",
-        ["Filter by tag"] = "Filter op tag",
+        ["Filter by age"] = "Filter op leeftijd",
+        -- Genre filter
+        ["♦ Genre: %1 (tap to change)"] = "♦ Genre: %1 (tik om te wijzigen)",
+        ["♦ Genre: all (tap to filter)"] = "♦ Genre: alle (tik om te filteren)",
+        ["Could not load genres. Check network and settings."] =
+            "Kan genres niet laden. Controleer netwerk en instellingen.",
+        ["No genres in this library."] = "Geen genres in deze bibliotheek.",
+        ["All genres (no filter)"] = "Alle genres (geen filter)",
+        ["Filter by genre"] = "Filter op genre",
         -- View toggle
         ["▦ View: text list (tap for covers)"] = "▦ Weergave: tekstlijst (tik voor omslagen)",
         ["▦ View: cover mosaic (tap for list)"] = "▦ Weergave: omslagraster (tik voor lijst)",

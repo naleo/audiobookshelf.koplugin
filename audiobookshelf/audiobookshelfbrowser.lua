@@ -59,6 +59,8 @@ end
 function AudiobookshelfBrowser:onMenuSelect(item)
     if item.type == "filter" then
         self:showTagFilter()
+    elseif item.type == "genrefilter" then
+        self:showGenreFilter()
     elseif item.type == "toggleview" then
         -- Switch to mosaic view and remember it; reopen the library.
         self.abs_settings:saveSetting("view_mode", "mosaic")
@@ -216,12 +218,13 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     self.library_id = id
     self.library_name = name
 
-    -- Persisted tag filter ("" = show everything) and view mode ("list"/"mosaic").
-    -- Both remembered across sessions via the plugin's LuaSettings config file.
+    -- Persisted filters ("" = show everything) and view mode ("list"/"mosaic").
+    -- All remembered across sessions via the plugin's LuaSettings config file.
     local active_tag = self.abs_settings:readSetting("filter_tag", "")
+    local active_genre = self.abs_settings:readSetting("filter_genre", "")
     local view_mode = self.abs_settings:readSetting("view_mode", "list")
 
-    local libraryItems = AudiobookshelfApi:getLibraryItems(id, active_tag)
+    local libraryItems = AudiobookshelfApi:getLibraryItems(id, active_tag, active_genre)
     if not libraryItems then
         UIManager:show(InfoMessage:new{
             text = _("Could not load library. Check network and settings."),
@@ -237,11 +240,17 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     end
 
     local tbl = {}
-    -- Filter row at the top: shows the active tag and opens the tag picker.
+    -- Age (tag) filter row.
     table.insert(tbl, {
-        text = (active_tag ~= "" and T(_("⚑ Filter: %1 (tap to change)"), active_tag)
-                                  or _("⚑ Filter: all books (tap to filter)")),
+        text = (active_tag ~= "" and T(_("⚑ Age: %1 (tap to change)"), active_tag)
+                                  or _("⚑ Age: all (tap to filter)")),
         type = "filter",
+    })
+    -- Genre filter row.
+    table.insert(tbl, {
+        text = (active_genre ~= "" and T(_("♦ Genre: %1 (tap to change)"), active_genre)
+                                    or _("♦ Genre: all (tap to filter)")),
+        type = "genrefilter",
     })
     -- View toggle row.
     table.insert(tbl, {
@@ -283,6 +292,7 @@ function AudiobookshelfBrowser:showMosaic(items, page)
     end
 
     local active_tag = self.abs_settings:readSetting("filter_tag", "")
+    local active_genre = self.abs_settings:readSetting("filter_genre", "")
 
     local mosaic
     mosaic = Mosaic:new{
@@ -292,6 +302,7 @@ function AudiobookshelfBrowser:showMosaic(items, page)
         library_id = self.library_id,
         library_name = self.library_name,
         active_tag = active_tag,
+        active_genre = active_genre,
         on_search = function()
             UIManager:close(mosaic)
             self:ShowSearch()
@@ -301,6 +312,10 @@ function AudiobookshelfBrowser:showMosaic(items, page)
             -- which lands back in a fresh mosaic (view_mode persisted "mosaic").
             UIManager:close(mosaic)
             self:showTagFilter()
+        end,
+        on_genre_filter = function()
+            UIManager:close(mosaic)
+            self:showGenreFilter()
         end,
         on_open = function(item)
             UIManager:close(mosaic)
@@ -375,11 +390,65 @@ function AudiobookshelfBrowser:showTagFilter()
 
     local ButtonDialog = require("ui/widget/buttondialog")
     self.tag_dialog = ButtonDialog:new{
-        title = _("Filter by tag"),
+        title = _("Filter by age"),
         title_align = "center",
         buttons = buttons,
     }
     UIManager:show(self.tag_dialog)
+end
+
+--[[--
+Show the genre picker. Lets the user pick a genre to filter the current library
+on (or "all genres" to clear). The choice is persisted and the library reloaded.
+The genre filter combines with the age filter (age is server-side, genre is
+applied client-side).
+--]]
+function AudiobookshelfBrowser:showGenreFilter()
+    if not self.library_id then return end
+    local genres = AudiobookshelfApi:getLibraryGenres(self.library_id)
+    if not genres then
+        UIManager:show(InfoMessage:new{
+            text = _("Could not load genres. Check network and settings."),
+            timeout = 2,
+        })
+        return
+    end
+    if #genres == 0 then
+        UIManager:show(InfoMessage:new{ text = _("No genres in this library."), timeout = 2 })
+        return
+    end
+
+    local active = self.abs_settings:readSetting("filter_genre", "")
+    local buttons = {}
+    table.insert(buttons, {{
+        text = (active == "" and "● " or "○ ") .. _("All genres (no filter)"),
+        callback = function()
+            UIManager:close(self.genre_dialog)
+            self.abs_settings:saveSetting("filter_genre", "")
+            self.abs_settings:flush()
+            self:openLibrary(self.library_id, self.library_name)
+        end,
+    }})
+    for _, genre in ipairs(genres) do
+        local g = genre
+        table.insert(buttons, {{
+            text = (active == g and "● " or "○ ") .. g,
+            callback = function()
+                UIManager:close(self.genre_dialog)
+                self.abs_settings:saveSetting("filter_genre", g)
+                self.abs_settings:flush()
+                self:openLibrary(self.library_id, self.library_name)
+            end,
+        }})
+    end
+
+    local ButtonDialog = require("ui/widget/buttondialog")
+    self.genre_dialog = ButtonDialog:new{
+        title = _("Filter by genre"),
+        title_align = "center",
+        buttons = buttons,
+    }
+    UIManager:show(self.genre_dialog)
 end
 
 return AudiobookshelfBrowser

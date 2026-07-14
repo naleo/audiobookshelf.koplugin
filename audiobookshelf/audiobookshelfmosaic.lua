@@ -47,13 +47,15 @@ local AudiobookshelfMosaic = InputContainer:extend{
     total = 0,
     library_id = nil,
     library_name = nil,
-    active_tag = "",      -- current tag filter ("" = none), for the Filter row
+    active_tag = "",      -- current tag (age) filter ("" = none)
+    active_genre = "",    -- current genre filter ("" = none)
     on_open = nil,        -- function(item) called on cover tap
     on_page = nil,        -- function(new_page) called to re-page
     on_close = nil,
     on_toggle_list = nil, -- function() switch back to text list
     on_search = nil,      -- function() open the search dialog (title bar left icon)
-    on_filter = nil,      -- function() open the tag picker (Filter row)
+    on_filter = nil,      -- function() open the age (tag) picker
+    on_genre_filter = nil,-- function() open the genre picker
 }
 
 function AudiobookshelfMosaic:init()
@@ -112,11 +114,17 @@ function AudiobookshelfMosaic:_build()
         return row
     end
 
-    local filter_label = (self.active_tag ~= "" and self.active_tag ~= nil)
-        and T(_("⚑ Filter: %1 (tap to change)"), self.active_tag)
-        or _("⚑ Filter: all books (tap to filter)")
-    local filter_row = make_menu_row(filter_label, function()
+    local age_label = (self.active_tag ~= "" and self.active_tag ~= nil)
+        and T(_("⚑ Age: %1 (tap to change)"), self.active_tag)
+        or _("⚑ Age: all (tap to filter)")
+    local filter_row = make_menu_row(age_label, function()
         if this.on_filter then this.on_filter() end
+    end)
+    local genre_label = (self.active_genre ~= "" and self.active_genre ~= nil)
+        and T(_("♦ Genre: %1 (tap to change)"), self.active_genre)
+        or _("♦ Genre: all (tap to filter)")
+    local genre_row = make_menu_row(genre_label, function()
+        if this.on_genre_filter then this.on_genre_filter() end
     end)
     local view_row = make_menu_row(_("▦ View: cover mosaic (tap for list)"), function()
         if this.on_toggle_list then this.on_toggle_list() end
@@ -159,7 +167,8 @@ function AudiobookshelfMosaic:_build()
     local footer_h = math.max(left_chev:getSize().h, page_text:getSize().h) + Size.padding.default * 2
 
     -- ── Grid geometry (space left after chrome) ──
-    local chrome_h = title_h + row_h * 2 + sep:getSize().h + footer_h
+    -- 3 menu rows now: age filter, genre filter, view toggle.
+    local chrome_h = title_h + row_h * 3 + sep:getSize().h + footer_h
     local grid_h = scr_h - chrome_h - margin
     local cell_w = math.floor(grid_w / self.cols)
     local cell_h = math.floor(grid_h / self.rows)
@@ -184,6 +193,7 @@ function AudiobookshelfMosaic:_build()
         align = "center",
         title_bar,
         filter_row,
+        genre_row,
         view_row,
         sep,
         VerticalSpan:new{ width = Size.span.vertical_default },
