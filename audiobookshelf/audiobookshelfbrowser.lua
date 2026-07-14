@@ -74,12 +74,10 @@ function AudiobookshelfBrowser:onMenuSelect(item)
         })
         self:openLibrary(item.id, item.text)
     elseif item.type == "book" then
-        -- Pass a zero-argument closure so the child calls the parent correctly
+        -- No onCloseParent: the browser Menu stays open underneath, so closing
+        -- the details widget returns to the book list (not all the way home).
         local bookdetailswidget = BookDetailsWidget:new{
             book_id = item.id,
-            onCloseParent = function()
-                self:onClose()
-            end,
         }
         UIManager:show(bookdetailswidget, "flashui")
     end
@@ -318,10 +316,10 @@ function AudiobookshelfBrowser:showMosaic(items, page)
             self:showGenreFilter()
         end,
         on_open = function(item)
-            UIManager:close(mosaic)
+            -- Leave the mosaic open underneath; closing the details widget
+            -- returns to the cover grid (not all the way home).
             local bookdetailswidget = BookDetailsWidget:new{
                 book_id = item.id,
-                onCloseParent = function() self:onClose() end,
             }
             UIManager:show(bookdetailswidget, "flashui")
         end,
