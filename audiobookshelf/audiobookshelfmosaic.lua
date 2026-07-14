@@ -134,16 +134,59 @@ function AudiobookshelfMosaic:_build()
     }
 end
 
+--[[--
+Build a "fake cover" for items without a cover image: a bordered card showing
+title (large) and author (small), font auto-shrunk to fit. Mirrors the look of
+KOReader's stock coverbrowser FakeCover, minus the file-based machinery.
+--]]
+function AudiobookshelfMosaic:_buildFakeCover(title, author, w, h)
+    local inner_w = w - Size.padding.default * 2
+    -- Shrink the title font until it fits the available height (cheap 3-step).
+    local title_wg, author_wg
+    for _, tsize in ipairs({ 18, 15, 12 }) do
+        title_wg = TextBoxWidget:new{
+            text = title,
+            face = Font:getFace("cfont", tsize),
+            width = inner_w,
+            alignment = "center",
+        }
+        if title_wg:getSize().h < h * 0.6 then break end
+    end
+    if author and author ~= "" then
+        author_wg = TextBoxWidget:new{
+            text = author,
+            face = Font:getFace("cfont", 11),
+            width = inner_w,
+            alignment = "center",
+        }
+    end
+    local inner = VerticalGroup:new{ align = "center", title_wg }
+    if author_wg then
+        table.insert(inner, VerticalSpan:new{ width = Size.padding.default })
+        table.insert(inner, author_wg)
+    end
+    return FrameContainer:new{
+        width = w,
+        height = h,
+        bordersize = Size.border.thin,
+        background = Blitbuffer.COLOR_WHITE,
+        CenterContainer:new{ dimen = Geom:new{ w = w, h = h }, inner },
+    }
+end
+
 function AudiobookshelfMosaic:_buildCell(item, cell_w, cell_h)
     local meta = item.media and item.media.metadata or {}
     local title = meta.title or _("Untitled")
+    local author = meta.authorName or ""
 
     local pad = Size.padding.small
     local caption_h = math.floor(cell_h * 0.22)
     local img_max_w = cell_w - pad * 2
     local img_max_h = cell_h - caption_h - pad * 2
 
-    -- Cover (disk-cached). Fall back to a placeholder box if unavailable.
+    -- Cover (disk-cached), wrapped in a thin border + white background so it
+    -- reads as a book, matching the stock mosaic look. Fall back to a titled
+    -- FakeCover card if no cover is available.
     local cover_widget
     local cover_path = AudiobookshelfApi:getCachedCoverPath(item.id)
     if cover_path then
@@ -157,24 +200,18 @@ function AudiobookshelfMosaic:_buildCell(item, cell_w, cell_h)
             iw:getSize()            -- force decode now to catch cache errors
             return iw
         end)
-        if ok and w then cover_widget = w end
+        if ok and w then
+            cover_widget = FrameContainer:new{
+                bordersize = Size.border.thin,
+                background = Blitbuffer.COLOR_WHITE,
+                padding = 0,
+                margin = 0,
+                w,
+            }
+        end
     end
     if not cover_widget then
-        cover_widget = FrameContainer:new{
-            width = img_max_w,
-            height = img_max_h,
-            bordersize = Size.border.thin,
-            background = Blitbuffer.COLOR_LIGHT_GRAY,
-            CenterContainer:new{
-                dimen = Geom:new{ w = img_max_w, h = img_max_h },
-                TextBoxWidget:new{
-                    text = title,
-                    face = Font:getFace("infofont", 12),
-                    width = img_max_w - 4,
-                    alignment = "center",
-                },
-            },
-        }
+        cover_widget = self:_buildFakeCover(title, author, img_max_w, img_max_h)
     end
 
     local caption = TextBoxWidget:new{
