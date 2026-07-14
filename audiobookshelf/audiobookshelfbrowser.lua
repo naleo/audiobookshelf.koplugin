@@ -282,6 +282,8 @@ function AudiobookshelfBrowser:showMosaic(items, page)
         table.insert(page_items, items[i])
     end
 
+    local active_tag = self.abs_settings:readSetting("filter_tag", "")
+
     local mosaic
     mosaic = Mosaic:new{
         items = page_items,
@@ -289,6 +291,17 @@ function AudiobookshelfBrowser:showMosaic(items, page)
         total = total,
         library_id = self.library_id,
         library_name = self.library_name,
+        active_tag = active_tag,
+        on_search = function()
+            UIManager:close(mosaic)
+            self:ShowSearch()
+        end,
+        on_filter = function()
+            -- Close the current mosaic first; the picker reloads the library,
+            -- which lands back in a fresh mosaic (view_mode persisted "mosaic").
+            UIManager:close(mosaic)
+            self:showTagFilter()
+        end,
         on_open = function(item)
             UIManager:close(mosaic)
             local bookdetailswidget = BookDetailsWidget:new{
