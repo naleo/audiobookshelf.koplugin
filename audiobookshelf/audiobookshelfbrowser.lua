@@ -7,6 +7,7 @@ local Menu = require("ui/widget/menu")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
+local T = require("ffi/util").template
 local logger = require("logger")
 
 local AudiobookshelfBrowser = Menu:extend{
@@ -56,7 +57,9 @@ function AudiobookshelfBrowser:genItemTableFromLibraries()
 end
 
 function AudiobookshelfBrowser:onMenuSelect(item)
-    if item.type == "library" then
+    if item.type == "filter" then
+        self:showTagFilter()
+    elseif item.type == "library" then
         table.insert(self.paths, {
             id = item.id,
             type = "library",
@@ -206,7 +209,10 @@ end
 
 function AudiobookshelfBrowser:openLibrary(id, name)
     local tbl = {}
-    local libraryItems = AudiobookshelfApi:getLibraryItems(id)
+    -- Persisted tag filter ("" = show everything). Remembered across sessions
+    -- via the plugin's LuaSettings config file.
+    local active_tag = self.abs_settings:readSetting("filter_tag", "")
+    local libraryItems = AudiobookshelfApi:getLibraryItems(id, active_tag)
     if not libraryItems then
         UIManager:show(InfoMessage:new{
             text = _("Could not load library. Check network and settings."),
@@ -214,6 +220,14 @@ function AudiobookshelfBrowser:openLibrary(id, name)
         })
         return false
     end
+
+    -- Filter row at the top: shows the active tag and opens the tag picker.
+    table.insert(tbl, {
+        text = (active_tag ~= "" and T(_("⚑ Filter: %1 (tap to change)"), active_tag)
+                                  or _("⚑ Filter: all books (tap to filter)")),
+        type = "filter",
+    })
+
     for _, item in ipairs(libraryItems) do
         table.insert(tbl, {
             id = item.id,
@@ -224,10 +238,64 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     end
 
     self.library_id = id
+    self.library_name = name
     self.level = "library"
     self:setTitleBarLeftIcon("appbar.search")
     self:switchItemTable(name, tbl)
     return true
+end
+
+--[[--
+Show the tag picker. Lets the user pick a tag to filter the current library on
+(or "all books" to clear). The choice is persisted and the library is reloaded.
+--]]
+function AudiobookshelfBrowser:showTagFilter()
+    if not self.library_id then return end
+    local tags = AudiobookshelfApi:getLibraryTags(self.library_id)
+    if not tags then
+        UIManager:show(InfoMessage:new{
+            text = _("Could not load tags. Check network and settings."),
+            timeout = 2,
+        })
+        return
+    end
+    if #tags == 0 then
+        UIManager:show(InfoMessage:new{ text = _("No tags in this library."), timeout = 2 })
+        return
+    end
+
+    local active = self.abs_settings:readSetting("filter_tag", "")
+    local buttons = {}
+    -- "All books" clears the filter
+    table.insert(buttons, {{
+        text = (active == "" and "● " or "○ ") .. _("All books (no filter)"),
+        callback = function()
+            UIManager:close(self.tag_dialog)
+            self.abs_settings:saveSetting("filter_tag", "")
+            self.abs_settings:flush()
+            self:openLibrary(self.library_id, self.library_name)
+        end,
+    }})
+    for _, tag in ipairs(tags) do
+        local t = tag
+        table.insert(buttons, {{
+            text = (active == t and "● " or "○ ") .. t,
+            callback = function()
+                UIManager:close(self.tag_dialog)
+                self.abs_settings:saveSetting("filter_tag", t)
+                self.abs_settings:flush()
+                self:openLibrary(self.library_id, self.library_name)
+            end,
+        }})
+    end
+
+    local ButtonDialog = require("ui/widget/buttondialog")
+    self.tag_dialog = ButtonDialog:new{
+        title = _("Filter by tag"),
+        title_align = "center",
+        buttons = buttons,
+    }
+    UIManager:show(self.tag_dialog)
 end
 
 return AudiobookshelfBrowser
