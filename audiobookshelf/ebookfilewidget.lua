@@ -7,6 +7,7 @@ local ConfirmBox = require("ui/widget/confirmbox")
 local DataStorage = require("datastorage")
 local DocumentRegistry = require("document/documentregistry")
 local Font = require("ui/font")
+local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -74,19 +75,28 @@ function EbookFileWidget:init()
         right_container
     }
 
-    local underline_container = UnderlineContainer:new{
+    self.underline_container = UnderlineContainer:new{
         linesize = Size.line.thin,
         padding = Size.padding.default,
         vertical_align = "center",
         color = Blitbuffer.COLOR_DARK_GRAY,
         overlay_container
     }
+    -- Wrap in a frame so we can visually highlight the row when it is focused
+    -- via the D-pad / physical keys on non-touch devices.
+    self.frame = FrameContainer:new{
+        bordersize = 0,
+        padding = 0,
+        margin = 0,
+        background = Blitbuffer.COLOR_WHITE,
+        self.underline_container,
+    }
     self[1] = CenterContainer:new{
-        dimen = Geom:new{ w = self.width, h = underline_container:getSize().h },
-        underline_container
+        dimen = Geom:new{ w = self.width, h = self.frame:getSize().h },
+        self.frame
     }
 
-    self.dimen = Geom:new{ w = self.width, h = underline_container:getSize().h }
+    self.dimen = Geom:new{ w = self.width, h = self.frame:getSize().h }
     self.ges_events = {
         TapSelect = {
             GestureRange:new{
@@ -114,6 +124,20 @@ function EbookFileWidget:onHoldSelect()
     if not self[1].dimen then return end
     -- stub for adding long hold functionality
     logger.warn(self.book_id, self.ino)
+end
+
+-- Called by the parent FocusManager when this row gains focus (D-pad / keys).
+function EbookFileWidget:onFocus()
+    self.frame.background = Blitbuffer.COLOR_LIGHT_GRAY
+    self.underline_container.color = Blitbuffer.COLOR_BLACK
+    return true
+end
+
+-- Called by the parent FocusManager when this row loses focus.
+function EbookFileWidget:onUnfocus()
+    self.frame.background = Blitbuffer.COLOR_WHITE
+    self.underline_container.color = Blitbuffer.COLOR_DARK_GRAY
+    return true
 end
 
 function EbookFileWidget:downloadFile()

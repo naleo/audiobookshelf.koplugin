@@ -24,8 +24,10 @@ local VerticalSpan = require("ui/widget/verticalspan")
 local Device = require("device")
 local Screen = Device.screen
 
+local Event = require("ui/event")
 local AudiobookshelfApi = require("audiobookshelf/audiobookshelfapi")
 local InfoMessage = require("ui/widget/infomessage")
+local _ = require("gettext")
 
 local BookDetailsWidget = FocusManager:extend{
     padding = Size.padding.fullscreen,
@@ -71,6 +73,20 @@ function BookDetailsWidget:init()
     }
 
     self.dithered = true
+
+    -- Allow closing the screen with a physical key (e.g. Back) on non-touch devices.
+    if Device:hasKeys() then
+        self.key_events = self.key_events or {}
+        self.key_events.Close = { { Device.input.group.Back } }
+    end
+
+    -- On devices without touch, focus the first downloadable file so it can be
+    -- selected and downloaded entirely with the D-pad / physical keys.
+    if Device:hasDPad() and not Device:isTouchDevice()
+            and self.layout[1] and self.layout[1][1] then
+        self.selected = { x = 1, y = 1 }
+        self.layout[1][1]:handleEvent(Event:new("Focus"))
+    end
 end
 
 function BookDetailsWidget:getDetailsContent(width)
@@ -101,17 +117,22 @@ function BookDetailsWidget:genFileList()
     }
     for _, file in ipairs(self.book_info.libraryFiles) do
         if file.fileType == "ebook" then
-            table.insert(list, EbookFileWidget:new{
+            local file_widget = EbookFileWidget:new{
                 width = screen_width,
                 ino = file.ino,
                 filename = file.metadata.filename,
                 size_in_bytes =  file.metadata.size,
                 book_id = self.book_info.id,
+                show_parent = self,
                 -- pass a zero-arg closure that will call this widget's onClose
                 onClose = function()
                     self:onClose()
                 end,
-            })
+            }
+            table.insert(list, file_widget)
+            -- Register each file as its own focusable row so the FocusManager
+            -- can move between them with the D-pad / physical keys.
+            table.insert(self.layout, { file_widget })
         end
     end
     return list
