@@ -63,6 +63,12 @@ function AudiobookshelfBrowser:onMenuSelect(item)
             name = item.text
         })
         self:openLibrary(item.id, item.text)
+    elseif item.type == "series" then
+        table.insert(self.paths, {
+            type = "series",
+            name = item.text
+        })
+        self:openSeries(item)
     elseif item.type == "book" then
         -- Pass a zero-argument closure so the child calls the parent correctly
         local bookdetailswidget = BookDetailsWidget:new{
@@ -214,12 +220,46 @@ function AudiobookshelfBrowser:openLibrary(id, name)
         })
         return false
     end
+    -- Group books by series
+    local series_map = {}
+    local series_order = {}
+
     for _, item in ipairs(libraryItems) do
-        table.insert(tbl, {
-            id = item.id,
-            text = item.media.metadata.title,
-            mandatory = item.media.metadata.authorName,
-            type = "book"
+        local seriesName = item.media.metadata.seriesName
+        if seriesName and seriesName ~= "" then
+            local sname = seriesName:match("^(.+) #[%d%.]+$") or seriesName
+            if not series_map[sname] then
+                series_map[sname] = {}
+                table.insert(series_order, sname)
+            end
+            local seq = seriesName:match("#([%d%.]+)$")
+            table.insert(series_map[sname], {
+                id = item.id,
+                title = item.media.metadata.title,
+                authorName = item.media.metadata.authorName,
+                sequence = tonumber(seq) or 999999,
+                seq_str = seq,
+            })
+        else
+            table.insert(tbl, {
+                id = item.id,
+                text = item.media.metadata.title,
+                mandatory = item.media.metadata.authorName,
+                type = "book"
+            })
+        end
+    end
+
+    -- Add series entries at top, sorted alphabetically
+    table.sort(series_order)
+    for _, sname in ipairs(series_order) do
+        local books = series_map[sname]
+        table.sort(books, function(a, b) return a.sequence < b.sequence end)
+        table.insert(tbl, 1, {
+            text = sname,
+            mandatory = tostring(#books) .. " " .. (#books == 1 and "book" or "books"),
+            type = "series",
+            series_books = books,
         })
     end
 
@@ -227,6 +267,23 @@ function AudiobookshelfBrowser:openLibrary(id, name)
     self.level = "library"
     self:setTitleBarLeftIcon("appbar.search")
     self:switchItemTable(name, tbl)
+    return true
+end
+
+function AudiobookshelfBrowser:openSeries(item)
+    local tbl = {}
+    for _, book in ipairs(item.series_books) do
+        local prefix = book.seq_str and (book.seq_str .. ". ") or ""
+        table.insert(tbl, {
+            id = book.id,
+            text = prefix .. book.title,
+            mandatory = book.authorName,
+            type = "book"
+        })
+    end
+
+    self.level = "series"
+    self:switchItemTable(item.text, tbl)
     return true
 end
 
