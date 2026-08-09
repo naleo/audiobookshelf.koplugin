@@ -45,10 +45,26 @@ function AudiobookshelfApi:getLibraries()
     return nil
 end
 
-function AudiobookshelfApi:getLibraryItems(id)
+--[[--
+Get items in a library.
+@param id string          library id
+@param tag string|nil     optional tag name; when set, only items carrying this
+                          tag are returned (server-side filter). "" or nil = all.
+--]]
+function AudiobookshelfApi:getLibraryItems(id, tag)
     local sink = {}
-    -- this is "ebooks" base64 encoded, and the URL encoded, to only return library items with ebooks
-    local filters = "ebooks." .. "ZWJvb2s%3D"
+    -- Server-side filter. The ABS filter value is base64(<value>) URL-encoded.
+    -- Default keeps the original "ebooks" filter (only items that have an ebook
+    -- file). If a tag is given, filter on that tag instead so excluded books
+    -- never come back over the wire.
+    local mime = require("mime")
+    local filters
+    if tag and tag ~= "" then
+        filters = "tags." .. util.urlEncode(mime.b64(tag))
+    else
+        -- "ebooks" -> base64 "ZWJvb2s=" -> URL-encoded
+        filters = "ebooks." .. "ZWJvb2s%3D"
+    end
     local request = {
         url = self.abs_settings:readSetting("server") .. "/api/libraries/" .. id .. "/items?filter=" .. filters .. "&sort=media.metadata.title&limit=0",
         method = "GET",
@@ -72,6 +88,38 @@ function AudiobookshelfApi:getLibraryItems(id)
     end
     logger.warn("AudiobookshelfApi: cannot get library items for library", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
+    return nil
+end
+
+--[[--
+Get the list of tags available in a library (for the tag filter picker).
+@param id string  library id
+@return table|nil  array of tag names, or nil on failure
+--]]
+function AudiobookshelfApi:getLibraryTags(id)
+    local sink = {}
+    local request = {
+        url = self.abs_settings:readSetting("server") .. "/api/libraries/" .. id .. "/filterdata",
+        method = "GET",
+        headers = {
+            ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
+            ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
+        },
+        sink = ltn12.sink.table(sink),
+    }
+    socketutil:set_timeout()
+    local ok, code, _, status = pcall(function() return socket.skip(1, http.request(request)) end)
+    local response = table.concat(sink)
+    socketutil:reset_timeout()
+    if not ok then
+        logger.warn("AudiobookshelfApi: http request failed in getLibraryTags:", code)
+        return nil
+    end
+    if code == 200 and response ~= "" then
+        local _, result = pcall(JSON.decode, response, JSON.decode.simple)
+        return result and result.tags or {}
+    end
+    logger.warn("AudiobookshelfApi: cannot get filterdata for library", id, status or code)
     return nil
 end
 
@@ -154,6 +202,59 @@ function AudiobookshelfApi:getLibraryItemCover(id)
     logger.warn("AudiobookshelfApi: cannot get library item cover", id ,status or code)
     logger.warn("AudiobookshelfApi: error:", response)
     return nil
+end
+
+--[[--
+Get a cover thumbnail for an item, cached on disk so the mosaic view does not
+re-download covers on every page render. Returns a local file path or nil.
+Uses a small server-side resized JPEG (width=240) to keep files tiny.
+@param id string  library item id
+@return string|nil  local file path to the cached cover jpg
+--]]
+function AudiobookshelfApi:getCachedCoverPath(id)
+    local DataStorage = require("datastorage")
+    local lfs = require("libs/libkoreader-lfs")
+    local cache_dir = DataStorage:getDataDir() .. "/cache/absmosaic"
+    if not lfs.attributes(cache_dir, "mode") then
+        os.execute(string.format('mkdir -p "%s"', cache_dir))
+    end
+    local path = cache_dir .. "/" .. id .. ".jpg"
+
+    -- Reuse a cached file if it looks valid (non-trivial size).
+    local attr = lfs.attributes(path)
+    if attr and attr.size and attr.size > 512 then
+        return path
+    end
+
+    -- Download a resized cover to disk.
+    local outfile, oerr = io.open(path, "wb")
+    if not outfile then
+        logger.warn("AudiobookshelfApi: cannot open cover cache file:", path, oerr)
+        return nil
+    end
+    local request = {
+        url = self.abs_settings:readSetting("server") .. "/api/items/" .. id .. "/cover?width=240&format=jpeg",
+        method = "GET",
+        headers = {
+            ["Authorization"] = "Bearer " .. self.abs_settings:readSetting("token"),
+            ["User-Agent"] = T("audiobookshelf.koplugin/%1", table.concat(VERSION, ".")),
+        },
+        sink = ltn12.sink.file(outfile),
+    }
+    socketutil:set_timeout()
+    local ok, code = pcall(function() return socket.skip(1, http.request(request)) end)
+    socketutil:reset_timeout()
+    if not ok or code ~= 200 then
+        logger.warn("AudiobookshelfApi: cover download failed:", id, code)
+        os.remove(path)
+        return nil
+    end
+    local attr2 = lfs.attributes(path)
+    if not attr2 or not attr2.size or attr2.size < 512 then
+        os.remove(path)
+        return nil
+    end
+    return path
 end
 
 function AudiobookshelfApi:getSearchResults(id, search_query)
