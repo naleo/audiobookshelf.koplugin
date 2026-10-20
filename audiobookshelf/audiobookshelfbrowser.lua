@@ -45,11 +45,17 @@ function AudiobookshelfBrowser:genItemTableFromLibraries()
         })
         return item_table
     end
-    for _, library in ipairs(libraries) do
+    for _i, library in ipairs(libraries) do
         table.insert(item_table, {
             text = library.name,
             type = "library",
             id = library.id,
+        })
+        table.insert(item_table, {
+            text = library.name .. " (" .. _("Audiobooks") .. ")",
+            type = "library",
+            id = library.id,
+            audio = true,
         })
     end
     return item_table
@@ -62,7 +68,16 @@ function AudiobookshelfBrowser:onMenuSelect(item)
             type = "library",
             name = item.text
         })
-        self:openLibrary(item.id, item.text)
+        self:openLibrary(item.id, item.text, item.audio)
+    elseif item.type == "audiobook" then
+        local ok, err = pcall(function() require("audiobookshelf/audiodetails").show(item.id) end)
+        if not ok then
+            logger.warn("audiobookshelf: audiobook page failed:", err)
+            UIManager:show(InfoMessage:new{
+                text = _("Could not open the audiobook page:\n") .. tostring(err),
+                timeout = 8,
+            })
+        end
     elseif item.type == "book" then
         -- Pass a zero-argument closure so the child calls the parent correctly
         local bookdetailswidget = BookDetailsWidget:new{
@@ -182,7 +197,7 @@ end
 
 function AudiobookshelfBrowser:loadLibrarySearch(search)
     local tbl = {}
-    local libraryItems = AudiobookshelfApi:getSearchResults(self.library_id, search)
+    local libraryItems = AudiobookshelfApi:getSearchResults(self.library_id, search, { audio = self.audio_mode })
     if not libraryItems or not libraryItems.book then
         UIManager:show(InfoMessage:new{
             text = _("Search failed. Check network and settings."),
@@ -196,7 +211,7 @@ function AudiobookshelfBrowser:loadLibrarySearch(search)
             id = item.libraryItem.id,
             text = item.libraryItem.media.metadata.title,
             mandatory = item.libraryItem.media.metadata.authorName,
-            type = "book"
+            type = self.audio_mode and "audiobook" or "book"
         })
     end
 
@@ -204,9 +219,9 @@ function AudiobookshelfBrowser:loadLibrarySearch(search)
     self:switchItemTable("Search Results", tbl)
 end
 
-function AudiobookshelfBrowser:openLibrary(id, name)
+function AudiobookshelfBrowser:openLibrary(id, name, audio)
     local tbl = {}
-    local libraryItems = AudiobookshelfApi:getLibraryItems(id)
+    local libraryItems = AudiobookshelfApi:getLibraryItems(id, { audio = audio })
     if not libraryItems then
         UIManager:show(InfoMessage:new{
             text = _("Could not load library. Check network and settings."),
@@ -219,11 +234,12 @@ function AudiobookshelfBrowser:openLibrary(id, name)
             id = item.id,
             text = item.media.metadata.title,
             mandatory = item.media.metadata.authorName,
-            type = "book"
+            type = audio and "audiobook" or "book"
         })
     end
 
     self.library_id = id
+    self.audio_mode = audio and true or false
     self.level = "library"
     self:setTitleBarLeftIcon("appbar.search")
     self:switchItemTable(name, tbl)

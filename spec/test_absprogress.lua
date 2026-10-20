@@ -1,0 +1,25 @@
+local H = require("harness")
+local AP = require("audiobookshelf/absprogress")
+
+H.test("midway body", function()
+    local b = AP.body(50, 200)
+    H.eq(b.currentTime, 50); H.eq(b.duration, 200)
+    H.eq(b.progress, 0.25); H.eq(b.isFinished, false)
+end)
+
+H.test("near the end is finished", function()
+    H.eq(AP.body(195, 200).isFinished, true)
+    H.eq(AP.body(189, 200).isFinished, false)
+end)
+
+H.test("clamps beyond duration and below zero", function()
+    local b = AP.body(250, 200)
+    H.eq(b.currentTime, 200); H.eq(b.progress, 1)
+    H.eq(AP.body(-4, 200).currentTime, 0)
+end)
+
+H.test("unknown duration gives zero progress and not finished", function()
+    local b = AP.body(30, 0)
+    H.eq(b.progress, 0); H.eq(b.isFinished, false); H.eq(b.currentTime, 30)
+    H.eq(AP.body(nil, nil).currentTime, 0)
+end)

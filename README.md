@@ -30,3 +30,23 @@ If you click on a book, you go to the Book Details page, which gives details abo
 Click on the name of one of the Downloadable files, and follow the process to download the eBook.
 
 ![FileManager_2025-04-14_172211](https://github.com/user-attachments/assets/a05ce960-48ae-4bf7-a5a3-54b161a3b211)
+
+## Audiobooks (requires KinAMP)
+
+Each library is listed twice: once for ebooks, and once as "(Audiobooks)".
+
+1. Install [KinAMP](https://github.com/kbarni/KinAMP) (its KOReader plugin and player) on your Kindle. This plugin drives KinAMP's player; it does not play audio itself.
+2. Open the "(Audiobooks)" entry of a library and pick a book. **Download** saves it into `<download folder>/<Title>/` as numbered files (`001-...`, `002-...`) plus a `book.m3u`. The download folder is the same one used for ebooks; you are asked once if none is set.
+3. **Play / Resume** starts KinAMP at your Audiobookshelf position. While you listen, progress is sent to Audiobookshelf about every 30 seconds, and again when you stop, suspend or exit KOReader.
+
+Notes:
+- The book page shows the book's cover, then your Audiobookshelf position and where Play will resume: the file number and the time inside that file, which is what is passed to KinAMP.
+- When Play has to start KinAMP's player fresh, the plugin starts it directly, without KinAMP's own Bluetooth radio cycle and its "Preparing Bluetooth" popup. The trade-off: KinAMP's 20 minute keepalive flag is not set, so a headset left idle for a long time may disconnect.
+- Some headsets (AirPods on firmware 5.19) stay silent until they are disconnected and reconnected while audio is playing. After a fresh start the plugin waits until playback is running at your position (up to 3 minutes, long MP3s seek slowly) and then reconnects the headset once. If you still hear nothing, reconnect the headset from KinAMP's Bluetooth menu.
+- Play resumes 30 seconds before your saved position, so the seconds lost to the seek and the Bluetooth reconnect are not missed. The book page shows the position it will use. Starting a book from the beginning, or after finishing it, is not rewound.
+- The cover is saved as `cover.jpg` in the book's folder. KinAMP only knows artwork embedded in the audio files, so while your book is the active session the plugin swaps that cover into KinAMP's player screen. If you close the player and reopen it from KinAMP's own menu it shows KinAMP's logo again until the next Play.
+- Starting a book replaces KinAMP's queue with the book's files.
+- Progress only syncs while KOReader is running. It is saved when you stop, suspend, or leave KOReader (menu exit, power off, or the back-button exit). If KinAMP keeps playing after KOReader closes, the next Play joins it instead of seeking back to an older position.
+- A download can be stopped between files by tapping the progress message; a single very large file cannot be interrupted until it finishes.
+- If Audiobookshelf is unreachable when you press Play, the last position saved on the Kindle is used.
+- A single file larger than 4 GB cannot be stored on the Kindle volume and is refused.
